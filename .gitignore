@@ -1,0 +1,16 @@
+# Dependencies
+node_modules/
+__pycache__/
+.env
+
+# Next.js
+.next/
+out/
+
+# Environment
+.env*.local
+.env
+
+# Misc
+.DS_Store
+*.pem
