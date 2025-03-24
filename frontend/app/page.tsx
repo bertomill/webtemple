@@ -6,11 +6,11 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 
 // Define TypeScript interfaces for form data structure
-interface BusinessFormData {
-  business_idea: string;
+interface BusinessData {
+  businessIdea: string;
   industry: string;
-  target_audience: string;
-  key_features: string;
+  targetAudience: string;
+  keyFeatures: string;
 }
 
 // Define interface for competitor information
@@ -25,23 +25,45 @@ interface AnalysisResponse {
   recommendation: string;
 }
 
+// Define the API URL based on environment
+const API_URL = process.env.NODE_ENV === 'development' 
+  ? 'http://localhost:8000/api' 
+  : '/api';
+
+interface Analysis {
+  competitors: string[] | string;
+  design: string;
+}
+
 // Main component for the home page
 export default function Home() {
   // State management for loading status, analysis results, and errors
   const [isLoading, setIsLoading] = useState(false);
   const [analysis, setAnalysis] = useState<AnalysisResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<Analysis | null>(null);
   
   // Initialize form handling with React Hook Form
-  const { register, handleSubmit, formState: { errors } } = useForm<BusinessFormData>();
+  const { register, handleSubmit, formState: { errors } } = useForm<BusinessData>();
 
   // Handle form submission
-  const onSubmit = async (data: BusinessFormData) => {
+  const onSubmit = async (formData: FormData) => {
     setIsLoading(true);
     setError(null);
+    
     try {
-      // Send POST request to backend API
-      const response = await fetch('https://webtemple.vercel.app/api/analyze', {
+      // Convert FormData to a proper object
+      const data: BusinessData = {
+        businessIdea: formData.get('businessIdea')?.toString() || '',
+        industry: formData.get('industry')?.toString() || '',
+        targetAudience: formData.get('targetAudience')?.toString() || '',
+        keyFeatures: formData.get('keyFeatures')?.toString() || ''
+      };
+
+      console.log('Sending request to:', API_URL);
+      console.log('Request data:', data);
+
+      const response = await fetch(API_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -49,19 +71,22 @@ export default function Home() {
         body: JSON.stringify(data),
       });
 
-      // Check if response was successful
+      console.log('Response status:', response.status);
+
+      const responseText = await response.text();
+      console.log('Raw response:', responseText);
+
       if (!response.ok) {
-        throw new Error('Failed to analyze business');
+        throw new Error(`API error: ${response.status} - ${responseText}`);
       }
 
-      // Parse and store the analysis results
-      const result = await response.json();
-      setAnalysis(result);
-    } catch (err) {
-      // Handle and display any errors that occur
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      const result = JSON.parse(responseText);
+      setResult(result);
+
+    } catch (error) {
+      console.error('Error in onSubmit:', error);
+      setError(error instanceof Error ? error.message : 'An error occurred');
     } finally {
-      // Reset loading state regardless of outcome
       setIsLoading(false);
     }
   };
@@ -75,30 +100,38 @@ export default function Home() {
       </h1>
 
       {/* Business analysis form */}
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 bg-white p-6 rounded-lg shadow-lg">
+      <form onSubmit={(e) => {
+        e.preventDefault();
+        const formData = new FormData(e.currentTarget);
+        onSubmit(formData);
+      }} className="space-y-6 bg-white p-6 rounded-lg shadow-lg">
         {/* Business Idea input field */}
         <div>
-          <label className="block text-sm font-medium text-gray-700">
+          <label htmlFor="businessIdea" className="block text-sm font-medium text-gray-700">
             Business Idea
           </label>
           <textarea
-            {...register('business_idea', { required: 'Please describe your business idea' })}
+            id="businessIdea"
+            name="businessIdea"
+            {...register('businessIdea', { required: 'Please describe your business idea' })}
             className="mt-1 block w-full rounded-md border border-gray-300 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             rows={3}
             placeholder="Describe your business idea..."
           />
-          {errors.business_idea && (
-            <p className="mt-1 text-sm text-red-600">{errors.business_idea.message}</p>
+          {errors.businessIdea && (
+            <p className="mt-1 text-sm text-red-600">{errors.businessIdea.message}</p>
           )}
         </div>
 
         {/* Industry input field */}
         <div>
-          <label className="block text-sm font-medium text-gray-700">
+          <label htmlFor="industry" className="block text-sm font-medium text-gray-700">
             Industry
           </label>
           <input
             type="text"
+            id="industry"
+            name="industry"
             {...register('industry', { required: 'Please specify your industry' })}
             className="mt-1 block w-full rounded-md border border-gray-300 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             placeholder="e.g., Healthcare, Technology, Education"
@@ -110,41 +143,45 @@ export default function Home() {
 
         {/* Target Audience input field */}
         <div>
-          <label className="block text-sm font-medium text-gray-700">
+          <label htmlFor="targetAudience" className="block text-sm font-medium text-gray-700">
             Target Audience
           </label>
           <input
             type="text"
-            {...register('target_audience', { required: 'Please specify your target audience' })}
+            id="targetAudience"
+            name="targetAudience"
+            {...register('targetAudience', { required: 'Please specify your target audience' })}
             className="mt-1 block w-full rounded-md border border-gray-300 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             placeholder="e.g., Young professionals, Small business owners"
           />
-          {errors.target_audience && (
-            <p className="mt-1 text-sm text-red-600">{errors.target_audience.message}</p>
+          {errors.targetAudience && (
+            <p className="mt-1 text-sm text-red-600">{errors.targetAudience.message}</p>
           )}
         </div>
 
         {/* Key Features input field */}
         <div>
-          <label className="block text-sm font-medium text-gray-700">
+          <label htmlFor="keyFeatures" className="block text-sm font-medium text-gray-700">
             Key Features
           </label>
           <textarea
-            {...register('key_features', { required: 'Please list your key features' })}
+            id="keyFeatures"
+            name="keyFeatures"
+            {...register('keyFeatures', { required: 'Please list your key features' })}
             className="mt-1 block w-full rounded-md border border-gray-300 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             rows={3}
             placeholder="List the main features of your product/service..."
           />
-          {errors.key_features && (
-            <p className="mt-1 text-sm text-red-600">{errors.key_features.message}</p>
+          {errors.keyFeatures && (
+            <p className="mt-1 text-sm text-red-600">{errors.keyFeatures.message}</p>
           )}
         </div>
 
         {/* Submit button with loading state */}
         <button
           type="submit"
-          disabled={isLoading}
           className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          disabled={isLoading}
         >
           {isLoading ? 'Analyzing...' : 'Analyze Business'}
         </button>
@@ -158,36 +195,23 @@ export default function Home() {
       )}
 
       {/* Analysis results display */}
-      {analysis && (
-        <div className="mt-8 space-y-6">
-          {/* Competitor Analysis section */}
-          <div className="bg-white p-6 rounded-lg shadow-lg">
-            <h2 className="text-2xl font-bold mb-4">Competitor Analysis</h2>
-            <ul className="space-y-4">
-              {analysis.competitors.map((competitor, index) => (
-                <li key={index} className="border-b pb-2">
-                  <h3 className="font-medium">{competitor.name}</h3>
-                  <a
-                    href={competitor.website}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-600 hover:underline text-sm"
-                  >
-                    Visit Website →
-                  </a>
-                </li>
-              ))}
-            </ul>
+      {result && (
+        <div className="mt-8 space-y-4">
+          <div>
+            <h2 className="text-xl font-bold mb-2">Competitors Analysis</h2>
+            {Array.isArray(result.competitors) ? (
+              <ul className="list-disc pl-5">
+                {result.competitors.map((competitor, index) => (
+                  <li key={index} className="mb-2">{competitor}</li>
+                ))}
+              </ul>
+            ) : (
+              <p className="whitespace-pre-wrap">{result.competitors}</p>
+            )}
           </div>
-
-          {/* Design Recommendations section */}
-          <div className="bg-white p-6 rounded-lg shadow-lg">
-            <h2 className="text-2xl font-bold mb-4">Design Recommendations</h2>
-            <div className="prose max-w-none">
-              {analysis.recommendation.split('\n').map((line, index) => (
-                <p key={index} className="mb-2">{line}</p>
-              ))}
-            </div>
+          <div>
+            <h2 className="text-xl font-bold mb-2">Design Recommendations</h2>
+            <p className="whitespace-pre-wrap">{result.design}</p>
           </div>
         </div>
       )}
