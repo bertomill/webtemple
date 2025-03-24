@@ -41,7 +41,7 @@ export default function Home() {
     setError(null);
     try {
       // Send POST request to backend API
-      const response = await fetch('/api/analyze', {
+      const response = await fetch('https://webtemple.vercel.app/api/analyze', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
